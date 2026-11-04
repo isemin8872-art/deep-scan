@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="AI 모델로 이미지가 실제 사진인지 AI 생성 이미지인지 분석하는 교육용 웹앱">
+<title>DEEP SCAN | AI 이미지 분석</title>
+<style>
+:root{--bg:#0a1020;--panel:#121d31;--line:#263852;--text:#eef5ff;--muted:#9aacc5;--blue:#58adff;--green:#43d3a0;--red:#ff7185}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% -20%,#1d3d66 0%,#0a1020 55%);color:var(--text);font-family:Inter,"Noto Sans KR",Arial,sans-serif;min-height:100vh}
+header{max-width:1050px;margin:auto;padding:25px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #263852}
+.logo{font-size:22px;font-weight:900;letter-spacing:2px}.logo span{color:var(--blue)}
+.pill{font-size:11px;color:#8ee9c9;border:1px solid #276b5b;padding:7px 10px;border-radius:30px;background:#12352e}
+main{max-width:900px;margin:55px auto;padding:0 20px}
+.hero{text-align:center;margin-bottom:32px}.eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:3px}
+h1{font-size:clamp(30px,6vw,48px);line-height:1.2;margin:13px 0}.hero p{color:var(--muted);line-height:1.8;margin:0}
+.panel{background:linear-gradient(145deg,#15233a,#101a2c);border:1px solid var(--line);border-radius:20px;padding:24px;margin:18px 0;box-shadow:0 18px 55px #0003}
+.panel h2{font-size:18px;margin:0 0 18px}
+.drop{border:1.5px dashed #49688f;border-radius:16px;min-height:230px;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;cursor:pointer;transition:.2s;background:#0d1728}
+.drop:hover,.drop.over{border-color:var(--blue);background:#142743}
+.drop .icon{font-size:42px}.drop strong{display:block;margin:12px 0 7px}.drop small{color:var(--muted)}
+#preview{display:none;max-width:100%;max-height:330px;border-radius:12px;margin:20px auto 0;object-fit:contain}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{border:0;border-radius:11px;padding:13px 18px;font-weight:800;cursor:pointer;font-size:14px}
+.primary{background:linear-gradient(90deg,#2587e9,#54b4ff);color:#071426;flex:1}
+.secondary{background:#263851;color:#e9f3ff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:14px}
+#progressBox{display:none;margin-top:18px}.progress{height:9px;background:#26364d;border-radius:20px;overflow:hidden}.bar{height:100%;width:0;background:linear-gradient(90deg,#2688e8,#63c3ff);transition:width .25s}
+#status{font-size:13px;color:#b8cbe2;margin-bottom:9px}
+#result{display:none}
+.result-head{text-align:center;padding:10px 0 18px}.result-icon{font-size:38px}.verdict{font-size:25px;font-weight:900;margin:10px 0}.sub{font-size:13px;color:var(--muted);line-height:1.7}
+.score{margin:20px 0}.scoreline{display:flex;justify-content:space-between;font-size:14px;margin-bottom:8px}.track{height:12px;border-radius:20px;background:#26364d;overflow:hidden}.fill{height:100%;width:0;transition:width .5s}.fake{background:var(--red)}.real{background:var(--green)}
+.warning{background:#2b2630;border:1px solid #66503a;color:#f0d8b3;border-radius:12px;padding:14px;font-size:12px;line-height:1.75;margin-top:20px}
+.history{display:grid;gap:9px}.history-row{display:flex;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #26364d;font-size:13px}.history-row span:first-child{overflow-wrap:anywhere}
+footer{text-align:center;color:#7388a5;padding:30px 15px;font-size:12px}
+a{color:#86c8ff}
+@media(max-width:560px){main{margin:32px auto}.panel{padding:18px}.actions button{width:100%}.pill{font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">DEEP <span>SCAN</span></div>
+  <div class="pill">● BROWSER AI ANALYSIS</div>
+</header>
+<main>
+  <section class="hero">
+    <div class="eyebrow">AI IMAGE AUTHENTICITY CHECK</div>
+    <h1>이 이미지는 진짜일까?<br><span style="color:var(--blue)">AI로 확인해 보세요.</span></h1>
+    <p>이미지를 업로드하면 브라우저에서 AI 모델이 특징을 분석합니다.<br>이미지는 별도 서버로 업로드하지 않고 브라우저에서 처리합니다.</p>
+  </section>
+
+  <section class="panel">
+    <h2>01 / 이미지 선택</h2>
+    <div class="drop" id="drop">
+      <div>
+        <div class="icon">▧</div>
+        <strong>이미지를 끌어오거나 클릭해서 선택하세요</strong>
+        <small>JPG · PNG · WEBP / 최대 10MB</small>
+        <input id="file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+        <img id="preview" alt="선택한 이미지 미리보기">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="analyze" disabled>AI 분석 시작</button>
+      <button class="secondary" id="clear">초기화</button>
+    </div>
+    <div id="progressBox">
+      <div id="status">AI 모델을 준비하고 있습니다.</div>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+    </div>
+    <div class="note">첫 실행 시 AI 모델 파일을 다운로드하므로 시간이 걸릴 수 있습니다. 안정적인 인터넷 연결이 필요합니다.</div>
+  </section>
+
+  <section class="panel" id="result">
+    <h2>02 / 분석 결과</h2>
+    <div class="result-head">
+      <div class="result-icon" id="resultIcon">🔎</div>
+      <div class="verdict" id="verdict">분석 완료</div>
+      <div class="sub" id="summary"></div>
+    </div>
+    <div class="score">
+      <div class="scoreline"><span>AI 생성 이미지 분류 점수</span><b id="fakeText">—</b></div>
+      <div class="track"><div class="fill fake" id="fakeBar"></div></div>
+    </div>
+    <div class="score">
+      <div class="scoreline"><span>실제 이미지 분류 점수</span><b id="realText">—</b></div>
+      <div class="track"><div class="fill real" id="realBar"></div></div>
+    </div>
+    <div class="warning">
+      <b>중요한 한계</b><br>
+      이 모델은 CIFAKE 데이터셋을 기반으로 일반적인 실제 이미지와 AI 생성 이미지를 분류하도록 학습됐습니다. 얼굴 합성·얼굴 교체형 딥페이크를 전문적으로 판별하는 모델은 아닙니다. 표시되는 점수는 모델의 분류 점수이지 이미지가 진짜일 확률을 보증하지 않습니다. 중요한 판단에는 원본 출처 등 추가 확인이 필요합니다.
+    </div>
+    <div class="actions"><button class="secondary" id="report">분석 결과 텍스트 저장</button></div>
+  </section>
+
+  <section class="panel">
+    <h2>03 / 이번 접속의 분석 기록</h2>
+    <div id="history" class="history"><div class="note">아직 분석 기록이 없습니다.</div></div>
+  </section>
+  <div class="note" style="text-align:center">사용 모델: <a href="https://huggingface.co/onnx-community/ai-image-detection-ONNX" target="_blank" rel="noopener">Hugging Face · AI Image Detection ONNX</a> · 교육 및 탐구용</div>
+</main>
+<footer>DEEP SCAN · AI IMAGE ANALYSIS PROJECT</footer>
+
+<script type="module">
+import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+const $ = id => document.getElementById(id);
+let chosen = null, detector = null, previewUrl = null, records = [], latestReport = "";
+const fileInput = $("file");
+
+function setStatus(message, percent) {
+  $("progressBox").style.display = "block";
+  $("status").textContent = message;
+  $("bar").style.width = Math.max(0, Math.min(100, percent)) + "%";
+}
+function chooseFile(file) {
+  if (!file) return;
+  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
+    alert("JPG, PNG, WEBP 파일만 선택할 수 있습니다."); return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    alert("10MB 이하의 이미지를 선택해 주세요."); return;
+  }
+  chosen = file;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(file);
+  $("preview").src = previewUrl;
+  $("preview").style.display = "block";
+  $("analyze").disabled = false;
+  $("result").style.display = "none";
+}
+$("drop").addEventListener("click", e => {
+  if (e.target !== fileInput) fileInput.click();
+});
+fileInput.addEventListener("change", e => chooseFile(e.target.files[0]));
+$("drop").addEventListener("dragover", e => { e.preventDefault(); $("drop").classList.add("over"); });
+$("drop").addEventListener("dragleave", () => $("drop").classList.remove("over"));
+$("drop").addEventListener("drop", e => {
+  e.preventDefault(); $("drop").classList.remove("over"); chooseFile(e.dataTransfer.files[0]);
+});
+
+$("analyze").addEventListener("click", async () => {
+  if (!chosen) return;
+  $("analyze").disabled = true;
+  $("result").style.display = "none";
+  try {
+    if (!detector) {
+      setStatus("AI 모델을 처음으로 불러옵니다. 다운로드 중에는 창을 닫지 마세요.", 8);
+      detector = await pipeline("image-classification",
+        "onnx-community/ai-image-detection-ONNX", {
+          progress_callback: data => {
+            if (data.status === "progress" && Number.isFinite(data.progress)) {
+              setStatus("AI 모델 다운로드 중...", 10 + data.progress * .65);
+            }
+          }
+        });
+    }
+    setStatus("이미지의 시각적 특징을 분석하고 있습니다...", 88);
+    const output = await detector(previewUrl);
+    const fake = output.find(x => x.label.toUpperCase() === "FAKE");
+    const real = output.find(x => x.label.toUpperCase() === "REAL");
+    if (!fake || !real) throw new Error("모델의 REAL/FAKE 분류 결과를 읽지 못했습니다.");
+
+    const f = fake.score * 100, r = real.score * 100;
+    $("fakeText").textContent = f.toFixed(1) + "%";
+    $("realText").textContent = r.toFixed(1) + "%";
+    $("fakeBar").style.width = f + "%";
+    $("realBar").style.width = r + "%";
+
+    const fakeWins = f >= r;
+    $("resultIcon").textContent = fakeWins ? "⚠️" : "📷";
+    $("verdict").textContent = fakeWins ? "AI 생성 이미지 쪽으로 분류" : "실제 이미지 쪽으로 분류";
+    $("summary").textContent = "모델이 반환한 두 분류 점수를 비교한 결과입니다. 확정 판정이 아닙니다.";
+    setStatus("분석이 완료되었습니다.", 100);
+    $("result").style.display = "block";
+
+    const date = new Date().toLocaleString("ko-KR");
+    latestReport =
+`DEEP SCAN 분석 결과
+파일명: ${chosen.name}
+분석 일시: ${date}
+AI 생성 이미지 분류 점수: ${f.toFixed(2)}%
+실제 이미지 분류 점수: ${r.toFixed(2)}%
+결과: ${fakeWins ? "AI 생성 이미지 쪽으로 분류" : "실제 이미지 쪽으로 분류"}
+
+주의: 이 모델은 CIFAKE 기반 일반 AI 생성 이미지 분류 모델이며, 얼굴 합성형 딥페이크 전문 탐지기가 아닙니다. 점수는 모델 분류 점수이며 진위 확률을 보증하지 않습니다.`;
+    records.unshift({name:chosen.name, verdict:fakeWins ? "AI 생성 쪽" : "실제 이미지 쪽", score:Math.max(f,r).toFixed(1)+"%", date});
+    renderHistory();
+  } catch (err) {
+    console.error(err);
+    alert("분석 중 문제가 발생했습니다.\n인터넷 연결을 확인한 뒤 다시 시도해 주세요.\n\n" + err.message);
+    setStatus("분석에 실패했습니다. 다시 시도해 주세요.", 0);
+  } finally {
+    $("analyze").disabled = !chosen;
+  }
+});
+
+function renderHistory() {
+  const area = $("history"); area.innerHTML = "";
+  records.forEach(item => {
+    const row = document.createElement("div"); row.className = "history-row";
+    const left = document.createElement("span"); left.textContent = item.name + " · " + item.date;
+    const right = document.createElement("b"); right.textContent = item.verdict + " (" + item.score + ")";
+    row.append(left,right); area.append(row);
+  });
+}
+$("report").addEventListener("click", () => {
+  if (!latestReport) return;
+  const blob = new Blob([latestReport], {type:"text/plain;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "deep-scan-report.txt"; a.click();
+  URL.revokeObjectURL(url);
+});
+$("clear").addEventListener("click", () => {
+  chosen = null; fileInput.value = "";
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null; $("preview").removeAttribute("src"); $("preview").style.display = "none";
+  $("analyze").disabled = true; $("result").style.display = "none";
+  $("progressBox").style.display = "none"; $("bar").style.width = "0%";
+});
+</script>
+</body>
+</html>
